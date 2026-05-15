@@ -1,0 +1,21 @@
+{
+  "input_path": "Video_temp/data.mp4",
+  "output_path": "auto",
+  "media_type": "auto",
+  "match_input_format": true,
+  "width": 120,
+  "color": true,
+  "background": "#000000",
+  "foreground": "#FFFFFF",
+  "font_size": 10,
+  "skip_frames": 1,
+  "preserve_audio": true,
+  "keep_temp_frames": false,
+  "temp_dir": "Video_temp/temp_ascii_frames",
+  "video_codec": "mp4v",
+  "final_video_codec": "libx264",
+  "final_video_crf": 22,
+  "final_video_preset": "medium",
+  "audio_bitrate": "192k",
+  "progress_every": 10
+}

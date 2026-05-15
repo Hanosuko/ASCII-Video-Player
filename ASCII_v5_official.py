@@ -1,439 +1,502 @@
 """
-ASCII Player Video Creator - V5 Official
-====================================================
-Versión completa con flujo interactivo mejorado.
-Basado en el trabajo de @stepanussaruran.
+ASCII Media Converter V5
+========================
 
-Características:
-  - Flujo interactivo: Logo -> Idioma -> Config -> Play -> Export -> Restart
-  - Soporte Multi-idioma (ES, EN, FR, PT, DE, Base)
-  - Exportación a MP4 con gestión de frames (Conservar o Borrar)
-  - Renderizado de alta densidad con paleta extendida
-  - Ajuste proporcional automático o manual
-
-Créditos Originales: stepanussaruran
-Modificaciones y Flujo: Nicolas Romero (coralgamer)
-Licencia: MIT (Open Source)
-=====================================================
-CHANGELOG:
-- Rediseño completo del flujo de usuario.
-- Añadido logo de inicio "ASCII Player Video Creator".
-- Gestión inteligente de archivos temporales en la exportación.
-- Ciclo de reinicio para procesar múltiples videos sin cerrar la app.
-- Traducciones actualizadas para el nuevo flujo.
-=====================================================
+Config-driven image/video-to-ASCII exporter with optional video audio
+preservation. Video inputs use OpenCV, image inputs use Pillow.
 """
 
+from __future__ import annotations
+
 import argparse
-import cv2
+import json
 import os
+import shutil
+import subprocess
 import sys
 import time
-import threading
-import shutil
+from dataclasses import dataclass, fields
+from pathlib import Path
+from typing import Any, Dict, Optional, Tuple
+
+import cv2
 import numpy as np
-from queue import Queue, Empty
 from PIL import Image, ImageDraw, ImageFont
 
-# ── Traducciones / Translations ──────────────────────────────────────────────
 
-TRANSLATIONS = {
-    "base": {
-        "app_name": "ASCII Player Video Creator",
-        "input_path": "Masukkan path video: ",
-        "enable_color": "Aktifkan warna karakter? (y/N): ",
-        "output_width": "Lebar output (kosongkan untuk Auto, terminal={}): ",
-        "skip_n_frames": "Skip setiap N frame (default 1): ",
-        "repeat_video": "Putar dalam loop preview? (y/N): ",
-        "playback_finished": "Selesai menampilkan video.",
-        "export_q": "Apakah Anda ingin mengekspor video ini ke MP4? (y/N): ",
-        "export_folder": "Tempelkan path folder untuk proses (temp): ",
-        "export_mode_q": "Simpan apa? (1. Hanya MP4 | 2. MP4 + Semua Frame PNG): ",
-        "export_bg": "Warna latar belakang (1. Hitam | 2. Putih | 3. Biru | 4. Custom Hex): ",
-        "export_start": "Mengekspor... Harap tunggu.",
-        "export_done": "Video siap! Lokasi: ",
-        "cleaning_temp": "Menghapus folder frame sementara...",
-        "try_again_q": "Ingin memproses video lain? (y/N): ",
-        "stopped_user": "Berhenti.",
-        "error_not_found": "File tidak ditemukan: '{}'",
-        "error_open": "Gagal membuka video.",
-        "processing_frame": "Frame {}/{}...",
-        "yes": "Ya", "no": "Tidak"
-    },
-    "es": {
-        "app_name": "ASCII Player Video Creator",
-        "input_path": "Introduce la ruta del video: ",
-        "enable_color": "¿Caracteres a color? (s/N): ",
-        "output_width": "Ancho de salida (vacío para Auto, terminal={}): ",
-        "skip_n_frames": "Saltar cada N cuadros (default 1): ",
-        "repeat_video": "¿Previsualizar en loop? (s/N): ",
-        "playback_finished": "Visualización terminada.",
-        "export_q": "¿Quieres exportarlo como MP4? (s/N): ",
-        "export_folder": "Crea una carpeta temporal, copia su ruta y pégala aquí: ",
-        "export_mode_q": "¿Qué quieres conservar? (1. Solo video MP4 | 2. Video + Cada Frame PNG): ",
-        "export_bg": "Color de fondo (1. Negro | 2. Blanco | 3. Azul | 4. Custom Hex): ",
-        "export_start": "Creando video... Por favor espera.",
-        "export_done": "¡Video finalizado! Guardado en: ",
-        "cleaning_temp": "Eliminando carpeta de frames temporales...",
-        "try_again_q": "¿Quieres volver a intentar con un nuevo video? (s/N): ",
-        "stopped_user": "Detenido.",
-        "error_not_found": "Archivo no encontrado: '{}'",
-        "error_open": "No se pudo abrir el video.",
-        "processing_frame": "Cuadro {}/{}...",
-        "yes": "Sí", "no": "No"
-    },
-    "en": {
-        "app_name": "ASCII Player Video Creator",
-        "input_path": "Enter video path: ",
-        "enable_color": "Character color? (y/N): ",
-        "output_width": "Output width (blank for Auto, terminal={}): ",
-        "skip_n_frames": "Skip every N frames (default 1): ",
-        "repeat_video": "Preview in loop? (y/N): ",
-        "playback_finished": "Playback finished.",
-        "export_q": "Do you want to export it as MP4? (y/N): ",
-        "export_folder": "Create a temp folder, copy its path and paste it here: ",
-        "export_mode_q": "What to keep? (1. Only MP4 video | 2. Video + Each PNG frame): ",
-        "export_bg": "Background color (1. Black | 2. White | 3. Blue | 4. Custom Hex): ",
-        "export_start": "Creating video... Please wait.",
-        "export_done": "Video finished! Saved at: ",
-        "cleaning_temp": "Deleting temporary frames folder...",
-        "try_again_q": "Do you want to try another video? (y/N): ",
-        "stopped_user": "Stopped.",
-        "error_not_found": "File not found: '{}'",
-        "error_open": "Could not open video.",
-        "processing_frame": "Frame {}/{}...",
-        "yes": "Yes", "no": "No"
-    },
-    "fr": {
-        "app_name": "ASCII Player Video Creator",
-        "input_path": "Entrez le chemin de la vidéo : ",
-        "enable_color": "Couleur des caractères ? (o/N) : ",
-        "output_width": "Largeur (vide pour Auto, terminal={}) : ",
-        "skip_n_frames": "Sauter toutes les N images (défaut 1) : ",
-        "repeat_video": "Aperçu en boucle ? (o/N) : ",
-        "playback_finished": "Lecture terminée.",
-        "export_q": "Voulez-vous exporter en MP4 ? (o/N) : ",
-        "export_folder": "Créez un dossier temporaire, copiez son chemin et collez-le ici : ",
-        "export_mode_q": "Que garder ? (1. Vidéo MP4 uniquement | 2. Vidéo + Chaque image PNG) : ",
-        "export_bg": "Couleur de fond (1. Noir | 2. Blanc | 3. Bleu | 4. Hex personnalisé) : ",
-        "export_start": "Création de la vidéo... Veuillez patienter.",
-        "export_done": "Vidéo terminée ! Enregistrée sous : ",
-        "cleaning_temp": "Suppression du dossier d'images temporaires...",
-        "try_again_q": "Voulez-vous essayer une autre vidéo ? (o/N) : ",
-        "stopped_user": "Arrêté.",
-        "error_not_found": "Fichier non trouvé : '{}'",
-        "error_open": "Impossible d'ouvrir la vidéo.",
-        "processing_frame": "Image {}/{}...",
-        "yes": "Oui", "no": "Non"
-    },
-    "pt": {
-        "app_name": "ASCII Player Video Creator",
-        "input_path": "Insira o caminho do vídeo: ",
-        "enable_color": "Cor dos caracteres? (s/N): ",
-        "output_width": "Largura (vazio para Auto, terminal={}): ",
-        "skip_n_frames": "Pular a cada N quadros (padrão 1): ",
-        "repeat_video": "Visualizar em loop? (s/N): ",
-        "playback_finished": "Reprodução finalizada.",
-        "export_q": "Deseja exportar como MP4? (s/N): ",
-        "export_folder": "Crie uma pasta temporária, copie o caminho e cole aqui: ",
-        "export_mode_q": "O que manter? (1. Apenas vídeo MP4 | 2. Vídeo + Cada frame PNG): ",
-        "export_bg": "Cor de fundo (1. Preto | 2. Branco | 3. Azul | 4. Hex personalizado): ",
-        "export_start": "Criando vídeo... Por favor, aguarde.",
-        "export_done": "Vídeo finalizado! Salvo em: ",
-        "cleaning_temp": "Excluindo pasta de frames temporários...",
-        "try_again_q": "Deseja tentar outro vídeo? (s/N): ",
-        "stopped_user": "Parado.",
-        "error_not_found": "Arquivo não encontrado: '{}'",
-        "error_open": "Não foi possível abrir o vídeo.",
-        "processing_frame": "Frame {}/{}...",
-        "yes": "Sim", "no": "Não"
-    },
-    "de": {
-        "app_name": "ASCII Player Video Creator",
-        "input_path": "Videopfad eingeben: ",
-        "enable_color": "Zeichenfarbe? (j/N): ",
-        "output_width": "Ausgabebreite (leer für Auto, Terminal={}): ",
-        "skip_n_frames": "Jeden N. Frame überspringen (Standard 1): ",
-        "repeat_video": "Vorschau in Schleife? (j/N): ",
-        "playback_finished": "Wiedergabe beendet.",
-        "export_q": "Möchten Sie als MP4 exportieren? (j/N): ",
-        "export_folder": "Temporären Ordner erstellen, Pfad kopieren und hier einfügen: ",
-        "export_mode_q": "Was behalten? (1. Nur MP4-Video | 2. Video + Jeder PNG-Frame): ",
-        "export_bg": "Hintergrundfarbe (1. Schwarz | 2. Weiß | 3. Blau | 4. Custom Hex): ",
-        "export_start": "Video wird erstellt... Bitte warten.",
-        "export_done": "Video fertig! Gespeichert unter: ",
-        "cleaning_temp": "Temporärer Frame-Ordner wird gelöscht...",
-        "try_again_q": "Möchten Sie ein weiteres Video versuchen? (j/N): ",
-        "stopped_user": "Gestoppt.",
-        "error_not_found": "Datei nicht gefunden: '{}'",
-        "error_open": "Video konnte nicht geöffnet werden.",
-        "processing_frame": "Frame {}/{} wird verarbeitet...",
-        "yes": "Ja", "no": "Nein"
-    }
-}
-
-# Global current language
-T = TRANSLATIONS["es"]
-
-def select_language():
-    global T
-    clear_console()
-    print(f"\n{C_BOLD}{C_CYAN}" + "═" * 60 + f"{RESET_COLOR}")
-    print(f"  {C_BOLD}SELECT YOUR LANGUAGE / SELECCIONA TU IDIOMA{RESET_COLOR}")
-    print(f"{C_CYAN}" + "═" * 60 + f"{RESET_COLOR}")
-    print(f"\n  1. Base (Bahasa)   2. Español   3. English")
-    print(f"  4. Français        5. Português 6. Deutsch")
-    
-    choice = input(f"\n  Choice (1-6): ").strip()
-    lang_map = {"1": "base", "2": "es", "3": "en", "4": "fr", "5": "pt", "6": "de"}
-    T = TRANSLATIONS.get(lang_map.get(choice), TRANSLATIONS["es"])
-
-def show_logo():
-    clear_console()
-    logo = f"""
-{C_CYAN}    ╔══════════════════════════════════════════════════════════╗
-    ║                                                          ║
-    ║   {C_BOLD}{C_GREEN} █████╗ ███████╗ ██████╗██╗██╗     ██████╗ ██╗      █████╗  {C_CYAN}║
-    ║   {C_BOLD}{C_GREEN}██╔══██╗██╔════╝██╔════╝██║██║     ██╔══██╗██║     ██╔══██╗ {C_CYAN}║
-    ║   {C_BOLD}{C_GREEN}███████║███████╗██║     ██║██║     ██████╔╝██║     ███████║ {C_CYAN}║
-    ║   {C_BOLD}{C_GREEN}██╔══██║╚════██║██║     ██║██║     ██╔═══╝ ██║     ██╔══██║ {C_CYAN}║
-    ║   {C_BOLD}{C_GREEN}██║  ██║███████║╚██████╗██║██║     ██║     ███████╗██║  ██║ {C_CYAN}║
-    ║   {C_BOLD}{C_GREEN}╚═╝  ╚═╝╚══════╝ ╚═════╝╚═╝╚═╝     ╚═╝     ╚══════╝╚═╝  ╚═╝ {C_CYAN}║
-    ║                                                          ║
-    ║              {C_BOLD}{C_YELLOW}V I D E O    C R E A T O R{C_CYAN}                  ║
-    ╚══════════════════════════════════════════════════════════╝{RESET_COLOR}
-    Contributors: Stepanussaruran, Nicolas Romero (CoralGamer).
-    """
-    print(logo)
-    time.sleep(5)
-
-# ── Conjunto de caracteres extendido ──────────────────────────────────────────
 ASCII_CHARS = " .'`^\",:;Il!i><~+_-?][}{1)(|\\/tfjrxnuvczmwqpdbkhao*#MW&8%B@$0QSXGZJKPHDAUYTRENVLCF"
-_CHARS_ARRAY = np.array(list(ASCII_CHARS))
+CHARS_ARRAY = np.array(list(ASCII_CHARS))
+SUPPORTED_VIDEO_HINT = ".mp4, .mov, .avi, .mkv, .webm, .m4v, .mpeg, .mpg"
+SUPPORTED_IMAGE_HINT = ".png, .jpg, .jpeg, .webp, .bmp, .tif, .tiff"
+IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg", ".webp", ".bmp", ".tif", ".tiff"}
+VIDEO_OUTPUT_SUFFIXES = {".mp4", ".mov", ".avi", ".mkv", ".webm", ".m4v"}
+AUTO_OUTPUT_VALUES = {"", "auto"}
 
-# ── Códigos de Escape ANSI ───────────────────────────────────────────────────
-CURSOR_HOME  = "\033[H"
-CLEAR_SCREEN = "\033[2J"
-HIDE_CURSOR  = "\033[?25l"
-SHOW_CURSOR  = "\033[?25h"
-RESET_COLOR  = "\033[0m"
 
-# ── Colores ───────────────────────────────────────────────────────────────────
-C_CYAN   = "\033[96m"
-C_GREEN  = "\033[92m"
-C_YELLOW = "\033[93m"
-C_RED    = "\033[91m"
-C_GRAY   = "\033[90m"
-C_BOLD   = "\033[1m"
+@dataclass
+class ConverterConfig:
+    input_path: str = "Video_temp/data.mp4"
+    output_path: str = "auto"
+    media_type: str = "auto"
+    match_input_format: bool = True
+    width: int = 120
+    color: bool = True
+    background: str = "#000000"
+    foreground: str = "#FFFFFF"
+    font_size: int = 10
+    skip_frames: int = 1
+    preserve_audio: bool = True
+    keep_temp_frames: bool = False
+    temp_dir: str = "Video_temp/temp_ascii_frames"
+    video_codec: str = "mp4v"
+    final_video_codec: str = "libx264"
+    final_video_crf: int = 22
+    final_video_preset: str = "medium"
+    audio_bitrate: str = "192k"
+    progress_every: int = 10
 
-def clear_console():
-    if os.name == "nt": os.system("cls")
-    else: os.system("clear")
 
-def enable_ansi_windows() -> None:
-    if os.name == "nt":
-        try:
-            import ctypes
-            kernel32 = ctypes.windll.kernel32
-            kernel32.SetConsoleMode(kernel32.GetStdHandle(-11), 7)
-        except Exception: pass
+@dataclass
+class VideoInfo:
+    fps: float
+    frame_count: int
+    width: int
+    height: int
 
-def get_video_info(cap: cv2.VideoCapture) -> dict:
-    return {
-        "fps"          : cap.get(cv2.CAP_PROP_FPS),
-        "total_frames" : int(cap.get(cv2.CAP_PROP_FRAME_COUNT)),
-        "width_px"     : int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)),
-        "height_px"    : int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT)),
-        "duration_s"   : cap.get(cv2.CAP_PROP_FRAME_COUNT) / max(cap.get(cv2.CAP_PROP_FPS), 1),
+    @property
+    def duration(self) -> float:
+        return self.frame_count / max(self.fps, 1.0)
+
+
+def parse_hex_color(value: str) -> Tuple[int, int, int]:
+    raw = value.strip().lstrip("#")
+    if len(raw) != 6:
+        raise ValueError(f"Color must be in #RRGGBB format: {value}")
+    try:
+        return tuple(int(raw[i : i + 2], 16) for i in (0, 2, 4))
+    except ValueError as exc:
+        raise ValueError(f"Color must be in #RRGGBB format: {value}") from exc
+
+
+def load_config(path: Optional[str]) -> ConverterConfig:
+    config = ConverterConfig()
+    if not path:
+        return config
+
+    config_path = Path(path)
+    with config_path.open("r", encoding="utf-8") as handle:
+        data = json.load(handle)
+
+    allowed = {field.name for field in fields(ConverterConfig)}
+    unknown = sorted(set(data) - allowed)
+    if unknown:
+        raise ValueError(f"Unknown config keys: {', '.join(unknown)}")
+
+    return ConverterConfig(**{**config.__dict__, **data})
+
+
+def save_default_config(path: str) -> None:
+    output = Path(path)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    with output.open("w", encoding="utf-8") as handle:
+        json.dump(ConverterConfig().__dict__, handle, indent=2, ensure_ascii=False)
+        handle.write("\n")
+
+
+def apply_cli_overrides(config: ConverterConfig, args: argparse.Namespace) -> ConverterConfig:
+    overrides: Dict[str, Any] = {
+        "input_path": args.input,
+        "output_path": args.output,
+        "media_type": args.media_type,
+        "match_input_format": args.match_input_format,
+        "width": args.width,
+        "color": args.color,
+        "preserve_audio": args.preserve_audio,
+        "skip_frames": args.skip_frames,
     }
+    for key, value in overrides.items():
+        if value is not None:
+            setattr(config, key, value)
+    return config
 
-# ── Conversión y Renderizado ──────────────────────────────────────────────────
 
-def frame_to_ascii_nocolor(frame, width: int) -> str:
+def detect_media_type(path: Path, configured_type: str) -> str:
+    media_type = configured_type.strip().lower()
+    if media_type in {"image", "video"}:
+        return media_type
+    if media_type != "auto":
+        raise ValueError("media_type must be one of: auto, image, video")
+    return "image" if path.suffix.lower() in IMAGE_SUFFIXES else "video"
+
+
+def open_video(path: Path) -> Tuple[cv2.VideoCapture, VideoInfo]:
+    if not path.exists():
+        raise FileNotFoundError(f"Input video not found: {path}")
+
+    capture = cv2.VideoCapture(str(path))
+    if not capture.isOpened():
+        raise RuntimeError(
+            f"Could not open '{path}'. Try another file or convert it to a common codec first."
+        )
+
+    fps = capture.get(cv2.CAP_PROP_FPS)
+    info = VideoInfo(
+        fps=fps if fps and fps > 0 else 30.0,
+        frame_count=int(capture.get(cv2.CAP_PROP_FRAME_COUNT)),
+        width=int(capture.get(cv2.CAP_PROP_FRAME_WIDTH)),
+        height=int(capture.get(cv2.CAP_PROP_FRAME_HEIGHT)),
+    )
+    return capture, info
+
+
+def open_image_as_frame(path: Path) -> np.ndarray:
+    if not path.exists():
+        raise FileNotFoundError(f"Input image not found: {path}")
+    try:
+        image = Image.open(path).convert("RGB")
+    except Exception as exc:
+        raise RuntimeError(f"Could not open image '{path}'.") from exc
+    return cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
+
+
+def frame_to_ascii(frame: np.ndarray, width: int) -> Tuple[np.ndarray, np.ndarray]:
     height = max(1, int(frame.shape[0] * width / frame.shape[1] / 2))
-    resized = cv2.resize(frame, (width, height))
-    gray    = cv2.cvtColor(resized, cv2.COLOR_BGR2GRAY)
-    n_chars = len(ASCII_CHARS) - 1
-    lines = []
-    for row in gray:
-        line = "".join(ASCII_CHARS[int(p / 255.0 * n_chars)] for p in row)
-        lines.append(line)
-    return "\n".join(lines)
+    resized = cv2.resize(frame, (width, height), interpolation=cv2.INTER_AREA)
+    rgb = cv2.cvtColor(resized, cv2.COLOR_BGR2RGB)
+    brightness = 0.299 * rgb[:, :, 0] + 0.587 * rgb[:, :, 1] + 0.114 * rgb[:, :, 2]
+    indices = np.clip(
+        (brightness / 255.0 * (len(ASCII_CHARS) - 1)).astype(np.int32),
+        0,
+        len(ASCII_CHARS) - 1,
+    )
+    return CHARS_ARRAY[indices], rgb
 
-def frame_to_ascii_color(frame, width: int) -> tuple:
-    height = max(1, int(frame.shape[0] * width / frame.shape[1] / 2))
-    resized     = cv2.resize(frame, (width, height))
-    resized_rgb = cv2.cvtColor(resized, cv2.COLOR_BGR2RGB)
-    brightness   = 0.299 * resized_rgb[:,:,0] + 0.587 * resized_rgb[:,:,1] + 0.114 * resized_rgb[:,:,2]
-    char_indices = np.clip((brightness / 255.0 * (len(ASCII_CHARS) - 1)).astype(np.int32), 0, len(ASCII_CHARS) - 1)
-    return _CHARS_ARRAY[char_indices], resized_rgb
 
-def ascii_to_image(char_map, rgb_map, bg_color, font_size=10):
-    h, w = char_map.shape
-    char_w, char_h = font_size * 0.6, font_size
-    img = Image.new("RGB", (int(w * char_w), int(h * char_h)), bg_color)
-    draw = ImageDraw.Draw(img)
-    try: font = ImageFont.truetype("consola.ttf", font_size)
-    except:
-        try: font = ImageFont.truetype("cour.ttf", font_size)
-        except: font = ImageFont.load_default()
-    for y in range(h):
-        for x in range(w):
-            color = tuple(rgb_map[y, x]) if rgb_map is not None else (255, 255, 255)
-            draw.text((x * char_w, y * char_h), char_map[y, x], fill=color, font=font)
-    return img
-
-# ── Flujo de Exportación ──────────────────────────────────────────────────────
-
-def export_flow(video_path, use_color, width):
-    clear_console()
-    print(f"\n  {C_BOLD}{C_GREEN}» EXPORTACIÓN A MP4 «{RESET_COLOR}")
-    folder = input(f"\n  {T['export_folder']}").strip().strip('"')
-    if not folder: return
-    
-    keep_mode = input(f"\n  {T['export_mode_q']}").strip()
-    bg_choice = input(f"\n  {T['export_bg']}").strip()
-    
-    bg_color = (0, 0, 0)
-    if bg_choice == "2": bg_color = (255, 255, 255)
-    elif bg_choice == "3": bg_color = (0, 0, 255)
-    elif bg_choice == "4":
-        hex_c = input("  Hex (#RRGGBB): ").strip().lstrip("#")
-        bg_color = tuple(int(hex_c[i:i+2], 16) for i in (0, 2, 4))
-    
-    temp_dir = os.path.join(folder, "temp_ascii_frames")
-    if os.path.exists(temp_dir): shutil.rmtree(temp_dir)
-    os.makedirs(temp_dir)
-    
-    cap = cv2.VideoCapture(video_path)
-    info = get_video_info(cap)
-    total, fps = info["total_frames"], info["fps"]
-    
-    print(f"\n  {C_YELLOW}{T['export_start']}{RESET_COLOR}")
-    
-    for i in range(1, total + 1):
-        ret, frame = cap.read()
-        if not ret: break
-        if use_color: char_map, rgb_map = frame_to_ascii_color(frame, width)
-        else:
-            txt = frame_to_ascii_nocolor(frame, width)
-            char_map = np.array([list(l) for l in txt.split("\n")])
-            rgb_map = None
-        img = ascii_to_image(char_map, rgb_map, bg_color)
-        img.save(os.path.join(temp_dir, f"f_{i:05d}.png"))
-        if i % 10 == 0: sys.stdout.write(f"\r  {T['processing_frame'].format(i, total)}"); sys.stdout.flush()
-    
-    cap.release()
-    output_v = os.path.join(folder, "ASCII_Player_Output.mp4")
-    sample = cv2.imread(os.path.join(temp_dir, "f_00001.png"))
-    out = cv2.VideoWriter(output_v, cv2.VideoWriter_fourcc(*'mp4v'), fps, (sample.shape[1], sample.shape[0]))
-    for i in range(1, total + 1):
-        out.write(cv2.imread(os.path.join(temp_dir, f"f_{i:05d}.png")))
-    out.release()
-    
-    if keep_mode == "1":
-        print(f"\n  {C_GRAY}{T['cleaning_temp']}{RESET_COLOR}")
-        shutil.rmtree(temp_dir)
-        
-    print(f"\n{C_GREEN}{T['export_done']}{RESET_COLOR}{output_v}")
-
-# ── Motor de Reproducción ─────────────────────────────────────────────────────
-
-def play_engine(video_path, width, use_color, skip, loop):
-    cap = cv2.VideoCapture(video_path)
-    info = get_video_info(cap); fps = info["fps"] if info["fps"]>0 else 30.0
-    delay = (1.0 / fps) * skip; video_ar = info["width_px"] / info["height_px"]
-    
-    while True:
-        cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
-        q = Queue(maxsize=10); stop = threading.Event()
-        def _dec():
-            idx = 0
-            while not stop.is_set():
-                ret, f = cap.read()
-                if not ret: break
-                if skip>1 and idx%skip!=0: idx+=1; continue
-                idx+=1
-                while not stop.is_set():
-                    try: q.put(f, timeout=0.1); break
-                    except: pass
-            q.put(None)
-        t = threading.Thread(target=_dec, daemon=True); t.start()
-        sys.stdout.write(HIDE_CURSOR + CLEAR_SCREEN); sys.stdout.flush()
-        f_cnt = 0; tot = max(1, info["total_frames"] // skip)
+def load_font(font_size: int) -> ImageFont.ImageFont:
+    candidates = [
+        "Menlo.ttc",
+        "Monaco.ttf",
+        "Consolas.ttf",
+        "consola.ttf",
+        "cour.ttf",
+        "/System/Library/Fonts/Menlo.ttc",
+        "/Library/Fonts/Arial Unicode.ttf",
+    ]
+    for candidate in candidates:
         try:
-            while True:
-                ts = time.perf_counter()
-                f = q.get(timeout=2.0)
-                if f is None: break
-                f_cnt += 1
-                try: ts_cols, ts_lines = os.get_terminal_size().columns, os.get_terminal_size().lines
-                except: ts_cols, ts_lines = 80, 24
-                if width is None:
-                    avail_h = max(1, ts_lines - 2)
-                    w_from_h = int(avail_h * video_ar * 2.0)
-                    cur_w = min(ts_cols, w_from_h)
-                else: cur_w = width
-                
-                if use_color:
-                    cmap, rgb = frame_to_ascii_color(f, cur_w)
-                    art = "\n".join(["".join([f"\033[38;2;{r};{g};{b}m{c}" for c, (r,g,b) in zip(row, rgb_row)]) + RESET_COLOR for row, rgb_row in zip(cmap, rgb)])
-                else: art = frame_to_ascii_nocolor(f, cur_w)
-                
-                sys.stdout.write(CURSOR_HOME + art)
-                bar_l = max(10, ts_cols - 45); filled = int(bar_l * (f_cnt/tot))
-                bar = "█" * filled + "░" * (bar_l - filled)
-                sys.stdout.write(f"\033[{ts_lines};1H{C_GRAY}[{bar}] {f_cnt}/{tot} | Ctrl+C {RESET_COLOR}")
-                sys.stdout.flush()
-                elap = time.perf_counter() - ts
-                if delay - elap > 0: time.sleep(delay - elap)
-        except KeyboardInterrupt: stop.set(); break
-        finally: stop.set(); t.join(timeout=1.0)
-        if not loop: break
-    cap.release(); sys.stdout.write(SHOW_CURSOR + RESET_COLOR + f"\n\n{T['playback_finished']}\n")
+            return ImageFont.truetype(candidate, font_size)
+        except OSError:
+            continue
+    return ImageFont.load_default()
 
-# ── Main ───────────────────────────────────────────────────────────────────────
 
-def main():
-    enable_ansi_windows()
-    show_logo()
-    select_language()
-    
-    while True:
-        show_logo()
-        print(f"  {C_BOLD}{C_YELLOW}» {T['app_name']} «{RESET_COLOR}\n")
-        vid = input(f"  {C_BOLD}{C_GREEN}»{RESET_COLOR} {T['input_path']}").strip().strip('"')
-        if not vid or not os.path.exists(vid):
-            print(f"  {C_RED}{T['error_not_found'].format(vid)}{RESET_COLOR}"); time.sleep(2); continue
-            
-        color_in = input(f"  {C_BOLD}{C_GREEN}»{RESET_COLOR} {T['enable_color']}").strip().lower()
-        use_color = color_in in ["s", "y", "o", "j"]
-        
-        try: ts_cols = os.get_terminal_size().columns
-        except: ts_cols = 80
-        w_in = input(f"  {C_BOLD}{C_GREEN}»{RESET_COLOR} {T['output_width'].format(ts_cols)}").strip()
-        width = int(w_in) if w_in else None
-        
-        s_in = input(f"  {C_BOLD}{C_GREEN}»{RESET_COLOR} {T['skip_n_frames']}").strip()
-        skip = int(s_in) if s_in else 1
-        
-        loop_in = input(f"  {C_BOLD}{C_GREEN}»{RESET_COLOR} {T['repeat_video']}").strip().lower()
-        loop = loop_in in ["s", "y", "o", "j"]
-        
-        # Playback
-        try: play_engine(vid, width, use_color, skip, loop)
-        except KeyboardInterrupt: pass
-        
-        # Export
-        exp_in = input(f"\n  {C_BOLD}{C_YELLOW}»{RESET_COLOR} {T['export_q']}").strip().lower()
-        if exp_in in ["s", "y", "o", "j"]:
-            export_flow(vid, use_color, width if width else 120)
-            
-        retry = input(f"\n  {C_BOLD}{C_CYAN}»{RESET_COLOR} {T['try_again_q']}").strip().lower()
-        if retry not in ["s", "y", "o", "j"]: break
+def char_cell_size(font: ImageFont.ImageFont, font_size: int) -> Tuple[int, int]:
+    probe = Image.new("RGB", (font_size * 4, font_size * 4))
+    draw = ImageDraw.Draw(probe)
+    bbox = draw.textbbox((0, 0), "M", font=font)
+    width = max(1, bbox[2] - bbox[0])
+    height = max(1, bbox[3] - bbox[1])
+    return width, int(height * 1.35)
 
-    clear_console()
-    print("\n  Thanks for using ASCII Player Video Creator!\n Follow us on tiktok! @stepanusputra16 & @coralgameryt")
+
+def ascii_to_image(
+    char_map: np.ndarray,
+    rgb_map: np.ndarray,
+    config: ConverterConfig,
+    font: ImageFont.ImageFont,
+    cell_size: Tuple[int, int],
+) -> Image.Image:
+    rows, cols = char_map.shape
+    cell_w, cell_h = cell_size
+    background = parse_hex_color(config.background)
+    foreground = parse_hex_color(config.foreground)
+
+    image = Image.new("RGB", (cols * cell_w, rows * cell_h), background)
+    draw = ImageDraw.Draw(image)
+
+    for y in range(rows):
+        y_pos = y * cell_h
+        for x in range(cols):
+            color = tuple(int(v) for v in rgb_map[y, x]) if config.color else foreground
+            draw.text((x * cell_w, y_pos), str(char_map[y, x]), fill=color, font=font)
+
+    return image
+
+
+def temp_silent_output(output_path: Path) -> Path:
+    return output_path.with_name(f"{output_path.stem}.silent{output_path.suffix or '.mp4'}")
+
+
+def default_output_path(input_path: Path, media_type: str) -> Path:
+    suffix = input_path.suffix or (".png" if media_type == "image" else ".mp4")
+    return input_path.with_name(f"{input_path.stem}_ASCII{suffix}")
+
+
+def resolve_output_path(input_path: Path, config: ConverterConfig, media_type: str) -> Path:
+    configured = str(config.output_path).strip()
+    if configured.lower() in AUTO_OUTPUT_VALUES:
+        return default_output_path(input_path, media_type)
+
+    output_path = Path(configured)
+    if config.match_input_format:
+        suffix = input_path.suffix or (".png" if media_type == "image" else ".mp4")
+        return output_path.with_suffix(suffix)
+
+    if media_type == "image" and (not output_path.suffix or output_path.suffix.lower() in VIDEO_OUTPUT_SUFFIXES):
+        return output_path.with_suffix(".png")
+
+    return output_path
+
+
+def find_ffmpeg() -> Optional[str]:
+    from_path = shutil.which("ffmpeg")
+    if from_path:
+        return from_path
+
+    try:
+        import imageio_ffmpeg
+
+        return imageio_ffmpeg.get_ffmpeg_exe()
+    except Exception:
+        return None
+
+
+def mux_audio(input_video: Path, silent_video: Path, output_video: Path, config: ConverterConfig) -> bool:
+    ffmpeg = find_ffmpeg()
+    if not ffmpeg:
+        print("Audio: ffmpeg not found, saving video without audio.")
+        return False
+
+    temp_muxed = output_video.with_name(f"{output_video.stem}.muxed{output_video.suffix or '.mp4'}")
+    command = [
+        ffmpeg,
+        "-y",
+        "-i",
+        str(silent_video),
+        "-i",
+        str(input_video),
+        "-map",
+        "0:v:0",
+        "-map",
+        "1:a?",
+        "-c:v",
+        config.final_video_codec,
+        "-preset",
+        config.final_video_preset,
+        "-crf",
+        str(config.final_video_crf),
+        "-pix_fmt",
+        "yuv420p",
+        "-c:a",
+        "aac",
+        "-b:a",
+        config.audio_bitrate,
+        "-shortest",
+        "-movflags",
+        "+faststart",
+        str(temp_muxed),
+    ]
+
+    result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    if result.returncode != 0:
+        print("Audio: failed to mux audio, saving video without audio.")
+        print(result.stderr.strip().splitlines()[-1] if result.stderr.strip() else "Unknown ffmpeg error")
+        return False
+
+    temp_muxed.replace(output_video)
+    return True
+
+
+def normalize_common_config(config: ConverterConfig) -> None:
+    config.width = max(20, int(config.width))
+    config.font_size = max(6, int(config.font_size))
+    config.skip_frames = max(1, int(config.skip_frames))
+    parse_hex_color(config.background)
+    parse_hex_color(config.foreground)
+
+
+def export_ascii_image(config: ConverterConfig) -> Path:
+    input_path = Path(config.input_path)
+    output_path = resolve_output_path(input_path, config, "image")
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    normalize_common_config(config)
+
+    frame = open_image_as_frame(input_path)
+    font = load_font(config.font_size)
+    cell_size = char_cell_size(font, config.font_size)
+    char_map, rgb_map = frame_to_ascii(frame, config.width)
+    image = ascii_to_image(char_map, rgb_map, config, font, cell_size)
+
+    print("ASCII Media Converter V5")
+    print(f"Input : {input_path}")
+    print(f"Output: {output_path}")
+    print(f"Type  : image")
+    print(f"Mode  : {'color' if config.color else 'black/white'} ASCII")
+    print(f"Images: commonly {SUPPORTED_IMAGE_HINT}")
+
+    if output_path.suffix.lower() in {".jpg", ".jpeg"}:
+        image.save(output_path, quality=95, optimize=True)
+    else:
+        image.save(output_path)
+
+    print(f"Done: {output_path}")
+    print(f"Size: {image.size[0]}x{image.size[1]}")
+    return output_path
+
+
+def export_ascii_video(config: ConverterConfig) -> Path:
+    input_path = Path(config.input_path)
+    output_path = resolve_output_path(input_path, config, "video")
+    temp_dir = Path(config.temp_dir)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    normalize_common_config(config)
+
+    capture, info = open_video(input_path)
+    export_fps = info.fps / config.skip_frames
+    silent_path = temp_silent_output(output_path) if config.preserve_audio else output_path
+
+    if temp_dir.exists():
+        shutil.rmtree(temp_dir)
+    temp_dir.mkdir(parents=True, exist_ok=True)
+
+    font = load_font(config.font_size)
+    cell_size = char_cell_size(font, config.font_size)
+    writer: Optional[cv2.VideoWriter] = None
+    written = 0
+    read_index = 0
+
+    print("ASCII Media Converter V5")
+    print(f"Input : {input_path}")
+    print(f"Output: {output_path}")
+    print(f"Type  : video")
+    print(f"Mode  : {'color' if config.color else 'black/white'} ASCII")
+    print(f"Audio : {'preserve' if config.preserve_audio else 'disabled'}")
+    print(f"Videos: input depends on OpenCV codecs, commonly {SUPPORTED_VIDEO_HINT}")
+
+    started = time.perf_counter()
+    try:
+        while True:
+            ret, frame = capture.read()
+            if not ret:
+                break
+
+            read_index += 1
+            if (read_index - 1) % config.skip_frames != 0:
+                continue
+
+            char_map, rgb_map = frame_to_ascii(frame, config.width)
+            image = ascii_to_image(char_map, rgb_map, config, font, cell_size)
+            frame_bgr = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
+
+            if writer is None:
+                height, width = frame_bgr.shape[:2]
+                fourcc = cv2.VideoWriter_fourcc(*config.video_codec[:4])
+                writer = cv2.VideoWriter(str(silent_path), fourcc, export_fps, (width, height))
+                if not writer.isOpened():
+                    raise RuntimeError(f"Could not create output video: {silent_path}")
+
+            writer.write(frame_bgr)
+            written += 1
+
+            if config.keep_temp_frames:
+                frame_file = temp_dir / f"frame_{written:05d}.png"
+                image.save(frame_file)
+
+            if written % max(1, config.progress_every) == 0:
+                total = info.frame_count or "?"
+                print(f"Frame {read_index}/{total} -> written {written}", end="\r", flush=True)
+    finally:
+        capture.release()
+        if writer:
+            writer.release()
+
+    if written == 0:
+        raise RuntimeError("No frames were readable from the input video.")
+
+    if not config.keep_temp_frames and temp_dir.exists():
+        shutil.rmtree(temp_dir)
+
+    audio_status = "not requested"
+    if config.preserve_audio:
+        audio_copied = mux_audio(input_path, silent_path, output_path, config)
+        audio_status = "copied" if audio_copied else "not copied"
+        if not audio_copied and silent_path.exists():
+            silent_path.replace(output_path)
+        if silent_path.exists():
+            silent_path.unlink()
+
+    elapsed = time.perf_counter() - started
+    print()
+    print(f"Done: {output_path}")
+    print(f"Frames written: {written}")
+    print(f"FPS: {export_fps:.2f}")
+    print(f"Audio: {audio_status}")
+    print(f"Elapsed: {elapsed:.1f}s")
+    return output_path
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        description="Convert images or videos to ASCII-style media using a JSON config.",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    parser.add_argument("--config", help="Path to JSON config.")
+    parser.add_argument("--init-config", help="Create a default JSON config at this path and exit.")
+    parser.add_argument("--input", help="Override input_path from config.")
+    parser.add_argument("--output", help="Override output_path from config.")
+    parser.add_argument("--media-type", choices=["auto", "image", "video"], help="How to treat the input file.")
+    format_group = parser.add_mutually_exclusive_group()
+    format_group.add_argument(
+        "--match-input-format",
+        action="store_true",
+        dest="match_input_format",
+        help="Force output extension to match the input extension.",
+    )
+    format_group.add_argument(
+        "--keep-output-format",
+        action="store_false",
+        dest="match_input_format",
+        help="Use the extension from output_path exactly as written.",
+    )
+    parser.set_defaults(match_input_format=None)
+    parser.add_argument("--width", type=int, help="Override ASCII width in characters.")
+    parser.add_argument("--skip-frames", type=int, help="Render every Nth frame.")
+
+    color_group = parser.add_mutually_exclusive_group()
+    color_group.add_argument("--color", action="store_true", dest="color", help="Render colored ASCII.")
+    color_group.add_argument("--no-color", action="store_false", dest="color", help="Render monochrome ASCII.")
+    parser.set_defaults(color=None)
+
+    audio_group = parser.add_mutually_exclusive_group()
+    audio_group.add_argument("--preserve-audio", action="store_true", dest="preserve_audio")
+    audio_group.add_argument("--no-audio", action="store_false", dest="preserve_audio")
+    parser.set_defaults(preserve_audio=None)
+
+    return parser
+
+
+def main() -> int:
+    parser = build_parser()
+    args = parser.parse_args()
+
+    if args.init_config:
+        save_default_config(args.init_config)
+        print(f"Config created: {args.init_config}")
+        return 0
+
+    try:
+        config = apply_cli_overrides(load_config(args.config), args)
+        media_type = detect_media_type(Path(config.input_path), config.media_type)
+        if media_type == "image":
+            export_ascii_image(config)
+        else:
+            export_ascii_video(config)
+        return 0
+    except Exception as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        return 1
+
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

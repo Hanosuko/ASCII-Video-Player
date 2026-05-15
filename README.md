@@ -9,7 +9,9 @@
 ![License](https://img.shields.io/badge/License-MIT-green.svg)
 
 
-V5 Official Release: Multi-language support, MP4 export, and improved interactive workflow
+V5 Official Release: Multi-language support, MP4 export, and improved interactive workflow.
+
+This fork also includes an ASCII Media Converter workflow with JSON config, image processing, audio-preserving video export, matching output formats, and Telegram-compatible H.264/AAC finalization.
 
 A professional text-based (CLI) video creation suite that allows you to play and **export** any video into high-quality ASCII art. This version is the official V5 release, featuring a complete interactive workflow and multi-language support.
 
@@ -32,31 +34,41 @@ A professional text-based (CLI) video creation suite that allows you to play and
 Ensure you have the required dependencies:
 
 ```bash
-pip install opencv-python numpy Pillow
+python3 -m pip install opencv-python numpy Pillow imageio-ffmpeg
 ```
 
 ---
 
 ## 🚀 How to Use
 
-Simply run the script and follow the guided interactive process:
+Run the config-based converter:
 
 ```bash
-python ASCII_v5_official.py
+python3 ASCII_v5_official.py --config ascii_config.json
 ```
 
-### Flow:
-1. **Logo & Language**: Choose your preferred language.
-2. **Configuration**: Set video path, color mode, width, and frame skipping.
-3. **Preview**: Watch the ASCII version in your terminal.
-4. **Export**: After previewing, choose if you want to export the result to an MP4 video file.
-5. **Cycle**: Process another video immediately after finishing!
+Examples:
+
+```bash
+python3 ASCII_v5_official.py --input Video_temp/clip.MOV --width 120 --color
+python3 ASCII_v5_official.py --input Photo/image.jpg --width 160 --no-color
+```
+
+With `output_path` set to `auto`, output keeps the input extension:
+
+- `clip.MOV` -> `clip_ASCII.MOV`
+- `movie.mp4` -> `movie_ASCII.mp4`
+- `image.jpg` -> `image_ASCII.jpg`
+- `picture.png` -> `picture_ASCII.png`
+
+See [README_RU.md](README_RU.md) for the detailed updated workflow and [CHANGELOG.md](CHANGELOG.md) for fork changes.
 
 ---
 
 ## 💡 Credits
 - **Original Core**: [stepanussaruran](https://github.com/stepanussaruran)
 - **V5 Enhancements & Export Logic**: Nicolas Romero ([coralgamer](https://github.com/nicolas-romero))
+- **Fork Improvements**: Hanosuko
 
 ## ⚖️ License
 Distributed under the **MIT License**. See `LICENSE` for more information.

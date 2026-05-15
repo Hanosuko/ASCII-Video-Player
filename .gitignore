@@ -1,0 +1,12 @@
+.DS_Store
+__pycache__/
+*.py[cod]
+
+.venv/
+venv/
+env/
+
+Video_temp/*
+!Video_temp/.gitkeep
+
+*.log
