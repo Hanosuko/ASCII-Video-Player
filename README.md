@@ -47,6 +47,14 @@ Run the config-based converter:
 python3 ASCII_v5_official.py --config ascii_config.json
 ```
 
+Or launch the desktop app:
+
+```bash
+/usr/bin/python3 ascii_gui.py
+```
+
+On macOS you can also double-click `run_gui.command`.
+
 Examples:
 
 ```bash

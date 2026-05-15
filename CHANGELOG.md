@@ -4,6 +4,7 @@
 
 Fork improvements:
 
+- Added a Tkinter desktop GUI and macOS launcher for rendering images and videos without terminal commands.
 - Added JSON-based conversion config.
 - Added image input support for PNG, JPG, JPEG, WEBP, BMP, TIF, and TIFF.
 - Added video input support with output extension matching the uploaded file.
