@@ -11,7 +11,7 @@
 
 V5 Official Release: Multi-language support, MP4 export, and improved interactive workflow.
 
-This fork also includes an ASCII Media Converter workflow with JSON config, image processing, audio-preserving video export, matching output formats, and Telegram-compatible H.264/AAC finalization.
+This fork also includes an ASCII Media Converter workflow with JSON config, image processing, normal/vivid/monochrome color modes, audio-preserving video export, matching output formats, and Telegram-compatible H.264/AAC finalization.
 
 A professional text-based (CLI) video creation suite that allows you to play and **export** any video into high-quality ASCII art. This version is the official V5 release, featuring a complete interactive workflow and multi-language support.
 
@@ -23,7 +23,7 @@ A professional text-based (CLI) video creation suite that allows you to play and
 - **🌍 Multi-Language Support**: Interactive language selector on startup (English, Spanish, French, Portuguese, German, and Indonesian).
 - **🖥️ Proportional Auto-Fit**: Real-time scaling to fit your terminal window (both width and height) while maintaining aspect ratio.
 - **🎨 Custom Backgrounds**: Choose the background color for your exports (Black, White, Blue, or any Custom Hex color).
-- **🌈 24-bit ANSI Color**: High-fidelity character coloring for a premium visual experience.
+- **🌈 Color Modes**: Use normal color, vivid high-saturation color, or black/white ASCII.
 - **⚡ Performance Optimized**: Background decoding and vectorized processing for smooth playback.
 - **🖋️ High-Density Set**: Expanded character set for deep shading and intricate details.
 
@@ -106,6 +106,7 @@ Examples:
 
 ```bash
 python3 ASCII_v5_official.py --input Video_temp/clip.MOV --width 120 --color
+python3 ASCII_v5_official.py --input Video_temp/clip.MOV --width 120 --vivid-color
 python3 ASCII_v5_official.py --input Photo/image.jpg --width 160 --no-color
 ```
 

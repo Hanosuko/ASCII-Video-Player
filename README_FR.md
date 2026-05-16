@@ -17,7 +17,7 @@ Une suite professionnelle de création vidéo basée sur le texte (CLI) qui vous
 - **🌍 Support Multilingue** : Sélecteur de langue interactif au démarrage (Anglais, Espagnol, Français, Portugais, Allemand et Indonésien).
 - **🖥️ Ajustement Automatique Proportionnel** : Mise à l'échelle en temps réel pour s'adapter à votre fenêtre de terminal (largeur et hauteur) tout en conservant le rapport d'aspect.
 - **🎨 Arrière-plans Personnalisés** : Choisissez la couleur d'arrière-plan pour vos exportations (Noir, Blanc, Bleu ou n'importe quelle couleur Hex personnalisée).
-- **🌈 Couleur ANSI 24 bits** : Coloration des caractères haute fidélité pour une expérience visuelle premium.
+- **🌈 Modes de Couleur** : Rendu ASCII en couleur normale, couleur vivid plus saturée ou noir et blanc.
 - **⚡ Performance Optimisée** : Décodage en arrière-plan et traitement vectorisé pour une lecture fluide.
 - **🖋️ Jeu de Haute Densité** : Jeu de caractères étendu pour des ombrages profonds et des détails complexes.
 
@@ -61,6 +61,12 @@ http://127.0.0.1:8765
 ```
 
 Téléversez un fichier ou choisissez-en un dans `Video_temp`, réglez la couleur/la largeur/l'audio, puis cliquez sur `Render`. Les résultats sont enregistrés dans `Video_temp`. Arrêtez le serveur local avec `Ctrl+C`.
+
+Pour des couleurs plus vives et saturées, choisissez `vivid` dans l'interface ou lancez :
+
+```bash
+python3 ASCII_v5_official.py --input Video_temp/clip.mp4 --vivid-color
+```
 
 Application de bureau Tkinter :
 

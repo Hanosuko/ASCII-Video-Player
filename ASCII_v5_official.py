@@ -41,6 +41,9 @@ class ConverterConfig:
     match_input_format: bool = True
     width: int = 120
     color: bool = True
+    color_style: str = "normal"
+    vivid_saturation: float = 1.75
+    vivid_brightness: float = 1.15
     background: str = "#000000"
     foreground: str = "#FFFFFF"
     font_size: int = 10
@@ -111,12 +114,17 @@ def apply_cli_overrides(config: ConverterConfig, args: argparse.Namespace) -> Co
         "match_input_format": args.match_input_format,
         "width": args.width,
         "color": args.color,
+        "color_style": args.color_style,
         "preserve_audio": args.preserve_audio,
         "skip_frames": args.skip_frames,
     }
     for key, value in overrides.items():
         if value is not None:
             setattr(config, key, value)
+    if args.color_style == "vivid":
+        config.color = True
+    elif args.color_style == "mono":
+        config.color = False
     return config
 
 
@@ -217,10 +225,32 @@ def ascii_to_image(
     for y in range(rows):
         y_pos = y * cell_h
         for x in range(cols):
-            color = tuple(int(v) for v in rgb_map[y, x]) if config.color else foreground
+            if not config.color or config.color_style == "mono":
+                color = foreground
+            elif config.color_style == "vivid":
+                color = boosted_rgb(rgb_map[y, x], config)
+            else:
+                color = tuple(int(v) for v in rgb_map[y, x])
             draw.text((x * cell_w, y_pos), str(char_map[y, x]), fill=color, font=font)
 
     return image
+
+
+def ascii_color_label(config: ConverterConfig) -> str:
+    if not config.color or config.color_style == "mono":
+        return "black/white"
+    if config.color_style == "vivid":
+        return "vivid color"
+    return "color"
+
+
+def boosted_rgb(color: np.ndarray, config: ConverterConfig) -> Tuple[int, int, int]:
+    rgb = color.astype(np.float32)
+    gray = 0.299 * rgb[0] + 0.587 * rgb[1] + 0.114 * rgb[2]
+    saturated = gray + (rgb - gray) * float(config.vivid_saturation)
+    brightened = saturated * float(config.vivid_brightness)
+    clipped = np.clip(brightened, 0, 255).astype(np.uint8)
+    return int(clipped[0]), int(clipped[1]), int(clipped[2])
 
 
 def temp_silent_output(output_path: Path) -> Path:
@@ -311,6 +341,15 @@ def normalize_common_config(config: ConverterConfig) -> None:
     config.width = max(20, int(config.width))
     config.font_size = max(6, int(config.font_size))
     config.skip_frames = max(1, int(config.skip_frames))
+    config.color_style = config.color_style.strip().lower()
+    if config.color_style not in {"normal", "vivid", "mono"}:
+        raise ValueError("color_style must be one of: normal, vivid, mono")
+    if not config.color:
+        config.color_style = "mono"
+    if config.color_style == "mono":
+        config.color = False
+    config.vivid_saturation = max(0.0, float(config.vivid_saturation))
+    config.vivid_brightness = max(0.0, float(config.vivid_brightness))
     parse_hex_color(config.background)
     parse_hex_color(config.foreground)
 
@@ -331,7 +370,7 @@ def export_ascii_image(config: ConverterConfig) -> Path:
     print(f"Input : {input_path}")
     print(f"Output: {output_path}")
     print(f"Type  : image")
-    print(f"Mode  : {'color' if config.color else 'black/white'} ASCII")
+    print(f"Mode  : {ascii_color_label(config)} ASCII")
     print(f"Images: commonly {SUPPORTED_IMAGE_HINT}")
 
     if output_path.suffix.lower() in {".jpg", ".jpeg"}:
@@ -370,7 +409,7 @@ def export_ascii_video(config: ConverterConfig) -> Path:
     print(f"Input : {input_path}")
     print(f"Output: {output_path}")
     print(f"Type  : video")
-    print(f"Mode  : {'color' if config.color else 'black/white'} ASCII")
+    print(f"Mode  : {ascii_color_label(config)} ASCII")
     print(f"Audio : {'preserve' if config.preserve_audio else 'disabled'}")
     print(f"Videos: input depends on OpenCV codecs, commonly {SUPPORTED_VIDEO_HINT}")
 
@@ -466,7 +505,19 @@ def build_parser() -> argparse.ArgumentParser:
     color_group = parser.add_mutually_exclusive_group()
     color_group.add_argument("--color", action="store_true", dest="color", help="Render colored ASCII.")
     color_group.add_argument("--no-color", action="store_false", dest="color", help="Render monochrome ASCII.")
-    parser.set_defaults(color=None)
+    color_group.add_argument(
+        "--vivid-color",
+        action="store_const",
+        dest="color_style",
+        const="vivid",
+        help="Render brighter, more saturated colored ASCII.",
+    )
+    parser.add_argument(
+        "--color-style",
+        choices=["normal", "vivid", "mono"],
+        help="Color rendering style.",
+    )
+    parser.set_defaults(color=None, color_style=None)
 
     audio_group = parser.add_mutually_exclusive_group()
     audio_group.add_argument("--preserve-audio", action="store_true", dest="preserve_audio")

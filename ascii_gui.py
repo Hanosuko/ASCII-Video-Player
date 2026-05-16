@@ -88,6 +88,8 @@ class ASCIIConverterApp(tk.Tk):
         self.output_path = tk.StringVar(value="auto")
         self.media_type = tk.StringVar(value="auto")
         self.color_mode = tk.StringVar(value="color")
+        self.vivid_saturation = tk.DoubleVar(value=1.75)
+        self.vivid_brightness = tk.DoubleVar(value=1.15)
         self.width_value = tk.IntVar(value=120)
         self.font_size = tk.IntVar(value=10)
         self.skip_frames = tk.IntVar(value=1)
@@ -141,7 +143,7 @@ class ASCIIConverterApp(tk.Tk):
         ttk.Combobox(
             settings,
             textvariable=self.color_mode,
-            values=("color", "black/white"),
+            values=("color", "vivid", "black/white"),
             state="readonly",
             width=12,
         ).grid(row=0, column=3, sticky="ew", padx=8, pady=8)
@@ -166,6 +168,16 @@ class ASCIIConverterApp(tk.Tk):
 
         ttk.Label(settings, text="Foreground").grid(row=1, column=4, sticky="w", padx=12, pady=8)
         ttk.Entry(settings, textvariable=self.foreground, width=10).grid(row=1, column=5, sticky="ew", padx=8, pady=8)
+
+        ttk.Label(settings, text="Vivid sat.").grid(row=1, column=6, sticky="w", padx=12, pady=8)
+        ttk.Spinbox(settings, from_=1.0, to=3.0, increment=0.05, textvariable=self.vivid_saturation, width=8).grid(
+            row=1, column=7, sticky="ew", padx=8, pady=8
+        )
+
+        ttk.Label(settings, text="Vivid bright.").grid(row=2, column=6, sticky="w", padx=12, pady=8)
+        ttk.Spinbox(settings, from_=1.0, to=2.0, increment=0.05, textvariable=self.vivid_brightness, width=8).grid(
+            row=2, column=7, sticky="ew", padx=8, pady=8
+        )
 
         ttk.Checkbutton(settings, text="Match input format", variable=self.match_input_format).grid(
             row=2, column=0, columnspan=2, sticky="w", padx=12, pady=8
@@ -228,7 +240,10 @@ class ASCIIConverterApp(tk.Tk):
             media_type=self.media_type.get(),
             match_input_format=self.match_input_format.get(),
             width=self.width_value.get(),
-            color=self.color_mode.get() == "color",
+            color=self.color_mode.get() != "black/white",
+            color_style={"color": "normal", "vivid": "vivid", "black/white": "mono"}[self.color_mode.get()],
+            vivid_saturation=self.vivid_saturation.get(),
+            vivid_brightness=self.vivid_brightness.get(),
             background=self.background.get().strip(),
             foreground=self.foreground.get().strip(),
             font_size=self.font_size.get(),

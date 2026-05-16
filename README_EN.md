@@ -17,7 +17,7 @@ A professional text-based (CLI) video creation suite that allows you to play and
 - **🌍 Multi-Language Support**: Interactive language selector on startup (English, Spanish, French, Portuguese, German, and Indonesian).
 - **🖥️ Proportional Auto-Fit**: Real-time scaling to fit your terminal window (both width and height) while maintaining aspect ratio.
 - **🎨 Custom Backgrounds**: Choose the background color for your exports (Black, White, Blue, or any Custom Hex color).
-- **🌈 24-bit ANSI Color**: High-fidelity character coloring for a premium visual experience.
+- **🌈 Color Modes**: Render normal color, vivid high-saturation color, or black/white ASCII.
 - **⚡ Performance Optimized**: Background decoding and vectorized processing for smooth playback.
 - **🖋️ High-Density Set**: Expanded character set for deep shading and intricate details.
 
@@ -61,6 +61,12 @@ http://127.0.0.1:8765
 ```
 
 Upload or choose a file from `Video_temp`, adjust color/width/audio settings, then press `Render`. Results are saved in `Video_temp`. Stop the local server with `Ctrl+C`.
+
+For brighter and more saturated output, choose `vivid` in the GUI or run:
+
+```bash
+python3 ASCII_v5_official.py --input Video_temp/clip.mp4 --vivid-color
+```
 
 Tkinter desktop app:
 

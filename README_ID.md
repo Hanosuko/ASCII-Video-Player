@@ -17,7 +17,7 @@ Suite kreasi video berbasis teks (CLI) profesional yang memungkinkan Anda memuta
 - **🌍 Dukungan Multi-Bahasa**: Pemilih bahasa interaktif saat startup (Inggris, Spanyol, Prancis, Portugis, Jerman, dan Indonesia).
 - **🖥️ Penyesuaian Otomatis Proporsional**: Penskalaan real-time agar sesuai dengan jendela terminal Anda (lebar dan tinggi) sambil tetap menjaga rasio aspek.
 - **🎨 Latar Belakang Kustom**: Pilih warna latar belakang untuk ekspor Anda (Hitam, Putih, Biru, atau warna Hex Kustom apa pun).
-- **🌈 Warna ANSI 24-bit**: Pewarnaan karakter fidelitas tinggi untuk pengalaman visual premium.
+- **🌈 Mode Warna**: Render ASCII dengan warna normal, warna vivid yang lebih jenuh, atau hitam-putih.
 - **⚡ Performa Dioptimalkan**: Pengodean latar belakang dan pemrosesan vektor untuk pemutaran yang lancar.
 - **🖋️ Set Kepadatan Tinggi**: Set karakter yang diperluas untuk bayangan dalam dan detail yang rumit.
 
@@ -61,6 +61,12 @@ http://127.0.0.1:8765
 ```
 
 Unggah file atau pilih file dari `Video_temp`, atur warna/lebar/audio, lalu tekan `Render`. Hasil disimpan di `Video_temp`. Hentikan server lokal dengan `Ctrl+C`.
+
+Untuk warna yang lebih terang dan jenuh, pilih `vivid` di GUI atau jalankan:
+
+```bash
+python3 ASCII_v5_official.py --input Video_temp/clip.mp4 --vivid-color
+```
 
 Aplikasi desktop Tkinter:
 

@@ -298,6 +298,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
       <label>Mode</label>
       <select name="color_mode">
         <option value="color">color</option>
+        <option value="vivid">vivid</option>
         <option value="bw">black/white</option>
       </select>
     </div>
@@ -320,6 +321,14 @@ class Handler(http.server.BaseHTTPRequestHandler):
     <div>
       <label>Foreground</label>
       <input name="foreground" value="#FFFFFF">
+    </div>
+    <div>
+      <label>Vivid saturation</label>
+      <input name="vivid_saturation" type="number" min="1" max="3" step="0.05" value="1.75">
+    </div>
+    <div>
+      <label>Vivid brightness</label>
+      <input name="vivid_brightness" type="number" min="1" max="2" step="0.05" value="1.15">
     </div>
   </div>
 
@@ -397,13 +406,24 @@ class Handler(http.server.BaseHTTPRequestHandler):
             except ValueError:
                 return default
 
+        def get_float(name: str, default: float) -> float:
+            try:
+                return float(form.getfirst(name, str(default)))
+            except ValueError:
+                return default
+
+        color_mode = form.getfirst("color_mode", "color")
+
         config = ConverterConfig(
             input_path=str(input_path),
             output_path=form.getfirst("output_path", "auto").strip() or "auto",
             media_type=form.getfirst("media_type", "auto"),
             match_input_format="match_input_format" in form,
             width=get_int("width", 120),
-            color=form.getfirst("color_mode", "color") == "color",
+            color=color_mode != "bw",
+            color_style={"color": "normal", "vivid": "vivid", "bw": "mono"}.get(color_mode, "normal"),
+            vivid_saturation=get_float("vivid_saturation", 1.75),
+            vivid_brightness=get_float("vivid_brightness", 1.15),
             background=form.getfirst("background", "#000000"),
             foreground=form.getfirst("foreground", "#FFFFFF"),
             font_size=get_int("font_size", 10),
