@@ -28,8 +28,47 @@ Uma suíte profissional de criação de vídeo baseada em texto (CLI) que permit
 Certifique-se de ter as dependências necessárias instaladas:
 
 ```bash
-pip install opencv-python numpy Pillow
+python3 -m pip install opencv-python numpy Pillow imageio-ffmpeg
 ```
+
+---
+
+## 🧩 Configuração Local Do Zero
+
+Clone seu fork e entre no projeto:
+
+```bash
+git clone https://github.com/Hanosuko/ASCII-Video-Player.git
+cd ASCII-Video-Player
+```
+
+Instale as dependências:
+
+```bash
+/usr/bin/python3 -m pip install opencv-python numpy Pillow imageio-ffmpeg
+```
+
+Inicie a interface web local:
+
+```bash
+/usr/bin/python3 ascii_web_gui.py
+```
+
+Abra:
+
+```text
+http://127.0.0.1:8765
+```
+
+Envie um arquivo ou escolha um arquivo em `Video_temp`, ajuste cor/largura/áudio e clique em `Render`. Os resultados são salvos em `Video_temp`. Pare o servidor local com `Ctrl+C`.
+
+Aplicativo desktop Tkinter:
+
+```bash
+/usr/bin/python3 ascii_gui.py
+```
+
+Se o Tkinter falhar no macOS, use a interface web.
 
 ---
 

@@ -28,8 +28,47 @@ Suite kreasi video berbasis teks (CLI) profesional yang memungkinkan Anda memuta
 Pastikan Anda telah menginstal dependensi yang diperlukan:
 
 ```bash
-pip install opencv-python numpy Pillow
+python3 -m pip install opencv-python numpy Pillow imageio-ffmpeg
 ```
+
+---
+
+## 🧩 Setup Lokal Dari Awal
+
+Clone fork Anda dan masuk ke folder proyek:
+
+```bash
+git clone https://github.com/Hanosuko/ASCII-Video-Player.git
+cd ASCII-Video-Player
+```
+
+Instal dependensi:
+
+```bash
+/usr/bin/python3 -m pip install opencv-python numpy Pillow imageio-ffmpeg
+```
+
+Jalankan antarmuka web lokal:
+
+```bash
+/usr/bin/python3 ascii_web_gui.py
+```
+
+Buka:
+
+```text
+http://127.0.0.1:8765
+```
+
+Unggah file atau pilih file dari `Video_temp`, atur warna/lebar/audio, lalu tekan `Render`. Hasil disimpan di `Video_temp`. Hentikan server lokal dengan `Ctrl+C`.
+
+Aplikasi desktop Tkinter:
+
+```bash
+/usr/bin/python3 ascii_gui.py
+```
+
+Jika Tkinter gagal di macOS, gunakan antarmuka web.
 
 ---
 

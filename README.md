@@ -39,6 +39,45 @@ python3 -m pip install opencv-python numpy Pillow imageio-ffmpeg
 
 ---
 
+## 🧩 Local Setup From Scratch
+
+Clone your fork and enter the project:
+
+```bash
+git clone https://github.com/Hanosuko/ASCII-Video-Player.git
+cd ASCII-Video-Player
+```
+
+Install dependencies:
+
+```bash
+/usr/bin/python3 -m pip install opencv-python numpy Pillow imageio-ffmpeg
+```
+
+Start the browser GUI:
+
+```bash
+/usr/bin/python3 ascii_web_gui.py
+```
+
+Open:
+
+```text
+http://127.0.0.1:8765
+```
+
+In the web app, upload or choose a file from `Video_temp`, configure ASCII width/color/audio, then press `Render`. Outputs are saved in `Video_temp` by default. Press `Ctrl+C` in Terminal to stop the local server.
+
+You can also try the Tkinter desktop app:
+
+```bash
+/usr/bin/python3 ascii_gui.py
+```
+
+If Tkinter crashes on macOS, use the browser GUI above.
+
+---
+
 ## 🚀 How to Use
 
 Run the config-based converter:
@@ -54,6 +93,14 @@ Or launch the desktop app:
 ```
 
 On macOS you can also double-click `run_gui.command`.
+
+If Tkinter fails on your macOS build, use the browser app instead:
+
+```bash
+/usr/bin/python3 ascii_web_gui.py
+```
+
+Or double-click `run_web_gui.command`, then open `http://127.0.0.1:8765`.
 
 Examples:
 

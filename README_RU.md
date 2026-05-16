@@ -37,6 +37,45 @@ python3 -m pip install opencv-python numpy Pillow imageio-ffmpeg
 
 ---
 
+## 🧩 Локальное развертывание с нуля
+
+Склонируйте fork и перейдите в папку проекта:
+
+```bash
+git clone https://github.com/Hanosuko/ASCII-Video-Player.git
+cd ASCII-Video-Player
+```
+
+Установите зависимости:
+
+```bash
+/usr/bin/python3 -m pip install opencv-python numpy Pillow imageio-ffmpeg
+```
+
+Запустите браузерное локальное приложение:
+
+```bash
+/usr/bin/python3 ascii_web_gui.py
+```
+
+Откройте в браузере:
+
+```text
+http://127.0.0.1:8765
+```
+
+В web-интерфейсе загрузите фото/видео или выберите файл из `Video_temp`, настройте цвет, ширину, звук и нажмите `Render`. Результаты сохраняются в `Video_temp`. Чтобы остановить сервер, нажмите `Ctrl+C` в Terminal.
+
+Если хочется попробовать desktop-окно:
+
+```bash
+/usr/bin/python3 ascii_gui.py
+```
+
+Если Tkinter падает на macOS с `Abort trap: 6`, используйте браузерное приложение выше.
+
+---
+
 ## 🚀 Как использовать
 
 V5 теперь работает через удобный JSON-конфиг. Откройте `ascii_config.json` и укажите нужные параметры:
@@ -73,6 +112,18 @@ python3 ASCII_v5_official.py --config ascii_config.json
 На macOS можно просто открыть файл `run_gui.command` двойным кликом.
 
 В окне можно выбрать фото или видео, настроить цветной/чёрно-белый режим, ширину ASCII, размер шрифта, сохранение звука и формат экспорта.
+
+Если Tkinter-окно падает с ошибкой вроде `Abort trap: 6`, запускайте браузерное приложение:
+
+```bash
+/usr/bin/python3 ascii_web_gui.py
+```
+
+Или двойным кликом откройте `run_web_gui.command`, затем перейдите в браузере на:
+
+```text
+http://127.0.0.1:8765
+```
 
 Создать новый конфиг с настройками по умолчанию:
 
